@@ -100,10 +100,14 @@ runtimeStyle.textContent=`
 .whatsapp-float img{width:54px!important;height:54px!important;display:block!important;object-fit:contain!important}
 .zoomable{cursor:zoom-in;transition:transform .22s ease,filter .22s ease}
 .zoomable:hover{transform:scale(1.025);filter:brightness(.96)}
-.lightbox{position:fixed;inset:0;z-index:9999;background:rgba(3,8,20,.92);display:flex;align-items:center;justify-content:center;padding:32px;opacity:0;visibility:hidden;transition:.2s ease}
+.lightbox{position:fixed;inset:0;z-index:9999;background:rgba(3,8,20,.92);display:flex;align-items:center;justify-content:center;padding:32px;opacity:0;visibility:hidden;transition:.2s ease;touch-action:pan-y}
 .lightbox.open{opacity:1;visibility:visible}
-.lightbox-image{max-width:min(1200px,94vw);max-height:86vh;width:auto;height:auto;object-fit:contain;border-radius:12px;box-shadow:0 24px 70px rgba(0,0,0,.48)}
-.lightbox-close{position:fixed;top:18px;right:24px;width:44px;height:44px;border:0;border-radius:50%;background:rgba(255,255,255,.13);color:#fff;font-size:32px;line-height:1;cursor:pointer;backdrop-filter:blur(8px)}
+.lightbox-image{max-width:min(1200px,94vw);max-height:86vh;width:auto;height:auto;object-fit:contain;border-radius:12px;box-shadow:0 24px 70px rgba(0,0,0,.48);user-select:none;-webkit-user-drag:none;transition:opacity .14s ease,transform .14s ease}
+.lightbox-image.changing{opacity:.25;transform:scale(.985)}
+.lightbox-close{position:fixed;top:18px;right:24px;width:44px;height:44px;border:0;border-radius:50%;background:rgba(255,255,255,.13);color:#fff;font-size:32px;line-height:1;cursor:pointer;backdrop-filter:blur(8px);z-index:2}
+.lightbox-nav{position:fixed;top:50%;transform:translateY(-50%);z-index:2;width:50px;height:64px;border:0;border-radius:14px;background:rgba(255,255,255,.12);color:#fff;font-size:38px;line-height:1;cursor:pointer;backdrop-filter:blur(8px);transition:background .2s ease,transform .2s ease}
+.lightbox-nav:hover{background:rgba(255,255,255,.22);transform:translateY(-50%) scale(1.05)}
+.lightbox-prev{left:22px}.lightbox-next{right:22px}
 .lightbox-caption{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);max-width:80vw;color:#fff;background:rgba(0,0,0,.42);padding:8px 14px;border-radius:10px;font-size:14px;text-align:center}
 body.lightbox-open{overflow:hidden}
 .catalog-section{padding:88px 0;background:#fff;border-top:1px solid #e5e7eb}
@@ -128,34 +132,93 @@ body.lightbox-open{overflow:hidden}
 .video-card strong{font-size:15px;line-height:1.3}
 .video-card span{font-size:12px;color:#94a3b8;margin-top:4px}
 @media(max-width:1000px){.catalog-grid{grid-template-columns:repeat(3,1fr)}.catalog-item{height:210px}.video-grid{grid-template-columns:repeat(2,1fr)}.video-card video{max-height:500px}}
-@media(max-width:600px){.catalog-section{padding:62px 0}.catalog-group{margin-bottom:36px}.catalog-title{display:block}.catalog-title span{display:block;margin-top:4px}.catalog-grid{grid-template-columns:repeat(2,1fr);gap:9px}.catalog-item{height:160px}.video-block{margin-top:58px;padding-top:52px}.video-grid{grid-template-columns:repeat(2,1fr);gap:10px}.video-card video{max-height:330px}.video-card>div{padding:11px}.video-card strong{font-size:12px}.video-card span{font-size:10px}.lightbox{padding:16px}.lightbox-image{max-width:96vw;max-height:82vh}.lightbox-close{top:12px;right:12px}.whatsapp-float,.whatsapp-float img{width:50px!important;height:50px!important}}
+@media(max-width:600px){.catalog-section{padding:62px 0}.catalog-group{margin-bottom:36px}.catalog-title{display:block}.catalog-title span{display:block;margin-top:4px}.catalog-grid{grid-template-columns:repeat(2,1fr);gap:9px}.catalog-item{height:160px}.video-block{margin-top:58px;padding-top:52px}.video-grid{grid-template-columns:repeat(2,1fr);gap:10px}.video-card video{max-height:330px}.video-card>div{padding:11px}.video-card strong{font-size:12px}.video-card span{font-size:10px}.lightbox{padding:16px}.lightbox-image{max-width:92vw;max-height:80vh}.lightbox-close{top:12px;right:12px}.lightbox-nav{width:40px;height:54px;font-size:31px;border-radius:11px}.lightbox-prev{left:8px}.lightbox-next{right:8px}.lightbox-caption{bottom:12px;max-width:74vw;font-size:12px}.whatsapp-float,.whatsapp-float img{width:50px!important;height:50px!important}}
 `;
 document.head.appendChild(runtimeStyle);
 
-// Lightbox para fotos de serviços, projetos e catálogo ampliado
+// Lightbox com setas, teclado e gesto de arrastar/deslizar
 const zoomableImages=[...document.querySelectorAll('.service-img img,.gallery-item img,.catalog-item img')];
 if(zoomableImages.length){
   const lightbox=document.createElement('div');
   lightbox.className='lightbox';
   lightbox.setAttribute('aria-hidden','true');
-  lightbox.innerHTML='<button class="lightbox-close" type="button" aria-label="Fechar imagem">×</button><img class="lightbox-image" alt=""><div class="lightbox-caption"></div>';
+  lightbox.innerHTML='<button class="lightbox-close" type="button" aria-label="Fechar imagem">×</button><button class="lightbox-nav lightbox-prev" type="button" aria-label="Imagem anterior">‹</button><img class="lightbox-image" alt=""><button class="lightbox-nav lightbox-next" type="button" aria-label="Próxima imagem">›</button><div class="lightbox-caption"></div>';
   document.body.appendChild(lightbox);
+
   const lightboxImage=lightbox.querySelector('.lightbox-image');
   const caption=lightbox.querySelector('.lightbox-caption');
   const closeButton=lightbox.querySelector('.lightbox-close');
-  const closeLightbox=()=>{lightbox.classList.remove('open');lightbox.setAttribute('aria-hidden','true');document.body.classList.remove('lightbox-open');};
-  zoomableImages.forEach(img=>{
+  const prevButton=lightbox.querySelector('.lightbox-prev');
+  const nextButton=lightbox.querySelector('.lightbox-next');
+  let currentIndex=0;
+  let dragStartX=null;
+
+  const renderImage=(index,direction=0)=>{
+    currentIndex=(index+zoomableImages.length)%zoomableImages.length;
+    const img=zoomableImages[currentIndex];
+    lightboxImage.classList.add('changing');
+    setTimeout(()=>{
+      lightboxImage.src=img.src;
+      lightboxImage.alt=img.alt||'Imagem ampliada';
+      caption.textContent=img.alt||'';
+      if(direction) lightboxImage.style.transform=`translateX(${direction>0?'10px':'-10px'}) scale(.985)`;
+      requestAnimationFrame(()=>{
+        lightboxImage.classList.remove('changing');
+        lightboxImage.style.transform='';
+      });
+    },90);
+  };
+
+  const showPrev=()=>renderImage(currentIndex-1,-1);
+  const showNext=()=>renderImage(currentIndex+1,1);
+  const closeLightbox=()=>{
+    lightbox.classList.remove('open');
+    lightbox.setAttribute('aria-hidden','true');
+    document.body.classList.remove('lightbox-open');
+  };
+
+  zoomableImages.forEach((img,index)=>{
     img.classList.add('zoomable');
     img.setAttribute('tabindex','0');
     img.setAttribute('role','button');
     img.setAttribute('aria-label','Ampliar imagem: '+(img.alt||'projeto'));
-    const openLightbox=()=>{lightboxImage.src=img.src;lightboxImage.alt=img.alt||'Imagem ampliada';caption.textContent=img.alt||'';lightbox.classList.add('open');lightbox.setAttribute('aria-hidden','false');document.body.classList.add('lightbox-open');};
+    const openLightbox=()=>{
+      currentIndex=index;
+      lightboxImage.src=img.src;
+      lightboxImage.alt=img.alt||'Imagem ampliada';
+      caption.textContent=img.alt||'';
+      lightbox.classList.add('open');
+      lightbox.setAttribute('aria-hidden','false');
+      document.body.classList.add('lightbox-open');
+    };
     img.addEventListener('click',openLightbox);
     img.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openLightbox();}});
   });
+
+  prevButton.addEventListener('click',e=>{e.stopPropagation();showPrev();});
+  nextButton.addEventListener('click',e=>{e.stopPropagation();showNext();});
   closeButton.addEventListener('click',closeLightbox);
   lightbox.addEventListener('click',e=>{if(e.target===lightbox)closeLightbox();});
-  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&lightbox.classList.contains('open'))closeLightbox();});
+
+  lightbox.addEventListener('pointerdown',e=>{
+    if(e.target.closest('button'))return;
+    dragStartX=e.clientX;
+  });
+  lightbox.addEventListener('pointerup',e=>{
+    if(dragStartX===null)return;
+    const delta=e.clientX-dragStartX;
+    dragStartX=null;
+    if(Math.abs(delta)<45)return;
+    delta<0?showNext():showPrev();
+  });
+  lightbox.addEventListener('pointercancel',()=>{dragStartX=null;});
+
+  document.addEventListener('keydown',e=>{
+    if(!lightbox.classList.contains('open'))return;
+    if(e.key==='Escape')closeLightbox();
+    if(e.key==='ArrowLeft')showPrev();
+    if(e.key==='ArrowRight')showNext();
+  });
 }
 
 // Exibe apenas os trechos úteis dos vídeos e toca somente quando estão visíveis
